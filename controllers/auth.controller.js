@@ -1,9 +1,10 @@
 const authService = require('../services/auth.service');
+const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res, next) => {
   try {
     const user = await authService.registerUser(req.body);
-    const token = jwt.sign({ id: user._id, role: user.role }, jwtSecret, {
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
     

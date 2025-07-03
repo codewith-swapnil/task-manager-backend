@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const projectController = require('../controllers/project.controller');
 const { authenticate } = require('../middleware/auth');
-const { checkRole } = require('../middleware/role');
 
 
 router.post('/', authenticate, projectController.createProject);
