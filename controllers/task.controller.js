@@ -62,3 +62,40 @@ exports.updateTaskStatus = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// File Upload Related Controllers
+exports.uploadTaskFiles = async (req, res) => {
+  try {
+    const files = req.files.map(file => ({
+      filename: file.filename,
+      originalName: file.originalname,
+      path: file.path,
+      size: file.size,
+      mimetype: file.mimetype,
+      uploadedBy: req.user.id
+    }));
+
+    const task = await taskService.addFilesToTask(req.params.id, files, req.user.id);
+    res.status(201).json(task.files);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+exports.getTaskFiles = async (req, res) => {
+  try {
+    const files = await taskService.getTaskFiles(req.params.id, req.user.id);
+    res.json(files);
+  } catch (err) {
+    res.status(404).json({ message: err.message });
+  }
+};
+
+exports.deleteTaskFile = async (req, res) => {
+  try {
+    await taskService.deleteTaskFile(req.params.id, req.params.fileId, req.user.id);
+    res.json({ message: 'File deleted successfully' });
+  } catch (err) {
+    res.status(403).json({ message: err.message });
+  }
+};
