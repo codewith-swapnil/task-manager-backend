@@ -10,5 +10,6 @@ router.get('/me', authenticate, authController.getMe);
 
 // Dashboard route (protected)
 router.get('/dashboard', authenticate, dashboardController.getDashboardStats);
+router.get('/users', authenticate, authController.allUsers);
 
 module.exports = router;

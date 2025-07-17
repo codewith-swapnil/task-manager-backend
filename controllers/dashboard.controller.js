@@ -1,37 +1,50 @@
-// controllers/dashboard.controller.js
 const Project = require('../models/Project');
 const Task = require('../models/Task');
+const mongoose = require('mongoose');
 
 exports.getDashboardStats = async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log('Fetching dashboard stats for user:', userId);
-    // Get projects count (where user is creator or member)
-    console.log('Fetching project count for user:', userId);
-    // Get projects count (where user is creator or member)
-    const projectCount = await Project.countDocuments({
+    
+    // 1. Verify and convert user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID' });
+    }
+    const userIdObj = new mongoose.Types.ObjectId(userId);
+    console.log('Searching for projects with user ID:', userIdObj.toString());
+
+    // 2. Debug queries
+    const createdCount = await Project.countDocuments({ createdBy: userIdObj });
+    const memberCount = await Project.countDocuments({ members: userIdObj });
+    console.log(`Debug counts - Created: ${createdCount}, Member: ${memberCount}`);
+
+    // 3. Main query with proper ObjectId comparison
+    const userProjects = await Project.find({
       $or: [
-        { createdBy: userId },
-        { members: userId }
+        { createdBy: { $eq: userIdObj } },
+        { members: { $in: [userIdObj] } }
       ]
-    });
-    console.log('Project count:', projectCount);
+    }).lean();
 
-    // Get tasks assigned to user
-    console.log('Fetching task count for user:', userId);
-    // Get tasks assigned to user
-    const taskCount = await Task.countDocuments({ assignedTo: userId });
+    console.log('Found projects:', userProjects.map(p => ({
+      id: p._id,
+      title: p.title,
+      // createdBy: p.createdBy,                   
+      members: p.members
+    })));
 
-    // Get tasks grouped by status
+    // 4. Rest of your logic...
+    const projectCount = userProjects.length;
+    const taskCount = await Task.countDocuments({ assignedUser: userIdObj });
+
     const tasksByStatus = await Task.aggregate([
-      { $match: { assignedTo: userId } },
+      { $match: { assignedUser: userIdObj } },
       { $group: { 
         _id: '$status',
         count: { $sum: 1 }
       }}
     ]);
 
-    // Format status counts
     const statusCounts = {
       Todo: 0,
       'In Progress': 0,
@@ -41,13 +54,18 @@ exports.getDashboardStats = async (req, res) => {
     tasksByStatus.forEach(status => {
       statusCounts[status._id] = status.count;
     });
-    console.log('Status counts:', statusCounts);
+
     res.json({
       success: true,
       data: {
         projectCount,
         taskCount,
-        statusCounts
+        statusCounts,
+        debug: {
+          userId: userId,
+          userIdObj: userIdObj.toString(),
+          foundProjects: projectCount
+        }
       }
     });
 
@@ -55,7 +73,8 @@ exports.getDashboardStats = async (req, res) => {
     console.error('Dashboard error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to load dashboard data'
+      message: 'Failed to load dashboard data',
+      error: error.message
     });
   }
 };

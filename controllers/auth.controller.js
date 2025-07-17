@@ -40,3 +40,12 @@ exports.getMe = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.allUsers = async (req, res, next) => {
+  try {
+    const users = await authService.getAllUsers();
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
+};

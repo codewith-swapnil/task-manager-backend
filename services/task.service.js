@@ -1,7 +1,7 @@
 const Task = require('../models/Task');
 
-exports.createTask = async (data, userId) => {
-  const task = new Task({ ...data, assignedTo: userId });
+exports.createTask = async (data) => {
+  const task = new Task({ ...data });
   return await task.save();
 };
 
@@ -39,9 +39,9 @@ exports.deleteTask = async (taskId, userId) => {
   if (!task) throw new Error('Task not found or permission denied');
 };
 
-exports.getTasksByProject = async (projectId, userId) => {
-  return await Task.find({ project: projectId, assignedTo: userId })
-    .populate('assignedTo')
+exports.getTasksByProject = async (projectId) => {
+  return await Task.find({ project: projectId })
+    .populate('assignedUser')
     .populate('project')
     .populate('files.uploadedBy', 'name email');
 };

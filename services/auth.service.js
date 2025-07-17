@@ -41,6 +41,10 @@ class AuthService {
   async getCurrentUser(userId) {
     return await User.findById(userId).select('-password');
   }
+
+  async getAllUsers() {
+    return await User.find();
+  }
 }
 
 module.exports = new AuthService();

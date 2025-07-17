@@ -2,7 +2,7 @@ const taskService = require('../services/task.service');
 
 exports.createTask = async (req, res) => {
   try {
-    const task = await taskService.createTask(req.body, req.user.id);
+    const task = await taskService.createTask(req.body);
     res.status(201).json(task);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -47,7 +47,7 @@ exports.deleteTask = async (req, res) => {
 
 exports.getTasksByProject = async (req, res) => {
   try {
-    const tasks = await taskService.getTasksByProject(req.params.projectId, req.user.id);
+    const tasks = await taskService.getTasksByProject(req.params.projectId);
     res.json(tasks);
   } catch (err) {
     res.status(404).json({ message: err.message });
