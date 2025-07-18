@@ -53,3 +53,12 @@ exports.addMember = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+exports.deleteMember = async (req, res) => {
+  try {
+    const project = await projectService.deleteMember(req.params.projectId, req.body.userId, req.params.memberId);
+    res.json(project);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};

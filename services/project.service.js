@@ -18,7 +18,7 @@ exports.getProjectById = async (projectId, userId) => {
 
 exports.updateProject = async (projectId, userId, data) => {
   const project = await Project.findOneAndUpdate(
-    { _id: projectId, createdBy: userId },
+    { _id: projectId },
     data,
     { new: true }
   );
@@ -39,6 +39,31 @@ exports.addMember = async (projectId, newMemberId, userId) => {
     project.members.push(newMemberId);
     await project.save();
   }
+
+  return project;
+};
+
+exports.deleteMember = async (projectId, userId, memberId) => {
+  // Find the project
+  const project = await Project.findOne({ _id: projectId });
+  if (!project) throw new Error('Project not found');
+
+  // Verify memberId is valid and exists in project members
+  if (!project.members || !Array.isArray(project.members)) {
+    throw new Error('Invalid project members data');
+  }
+
+  const memberIndex = project.members.findIndex(member => 
+    member && member.toString() === memberId.toString()
+  );
+
+  if (memberIndex === -1) {
+    throw new Error('Member not found in this project');
+  }
+
+  // Remove the member
+  project.members.splice(memberIndex, 1);
+  await project.save();
 
   return project;
 };

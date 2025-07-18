@@ -10,5 +10,6 @@ router.get('/:id', authenticate, projectController.getProject);
 router.put('/:id', authenticate, projectController.updateProject);
 router.delete('/:id', authenticate, projectController.deleteProject);
 router.post('/:id/members', authenticate, projectController.addMember);
+router.delete('/:projectId/members/:memberId', authenticate, projectController.deleteMember);
 
 module.exports = router;
