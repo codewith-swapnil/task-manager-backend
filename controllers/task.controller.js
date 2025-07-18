@@ -11,16 +11,63 @@ exports.createTask = async (req, res) => {
 
 exports.getTasks = async (req, res) => {
   try {
-    const tasks = await taskService.getTasks(req.user.id);
-    res.json(tasks);
+    console.log('Incoming query params:', req.query); // Log incoming parameters
+    
+    const { 
+      page = 1,
+      limit = 10,
+      status,
+      assignedUser,
+      project,
+      searchQuery,
+      dueDateFrom,
+      dueDateTo
+    } = req.query;
+
+    const result = await taskService.getTasks({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      status,
+      assignedUser,
+      project,
+      searchQuery,
+      dueDateFrom: dueDateFrom ? new Date(dueDateFrom) : null,
+      dueDateTo: dueDateTo ? new Date(dueDateTo) : null,
+      userId: req.user.id
+    });
+
+    console.log('Query result:', { // Log the database query result
+      taskCount: result.tasks.length,
+      firstTask: result.tasks[0] || 'No tasks found'
+    });
+
+    res.json({
+      success: true,
+      tasks: result.tasks,
+      pagination: {
+        totalCount: result.totalCount,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        limit: result.limit
+      }
+    });
+
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('Error fetching tasks:', {
+      message: err.message,
+      stack: err.stack
+    });
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Failed to fetch tasks',
+      debug: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
 
 exports.getTask = async (req, res) => {
   try {
-    const task = await taskService.getTaskById(req.params.id, req.user.id);
+    const task = await taskService.getTaskById(req.params.id);
     res.json(task);
   } catch (err) {
     res.status(404).json({ message: err.message });
@@ -29,7 +76,17 @@ exports.getTask = async (req, res) => {
 
 exports.updateTask = async (req, res) => {
   try {
-    const updatedTask = await taskService.updateTask(req.params.id, req.body, req.user.id);
+    const { id } = req.params;
+    const updateData = {
+      title: req.body.title,
+      description: req.body.description,
+      status: req.body.status,
+      dueDate: req.body.dueDate,
+      assignedTo: req.body.assignedTo,  // Make sure this matches your schema
+      project: req.body.project
+    };
+    
+    const updatedTask = await taskService.updateTask(id, updateData, req.user.id);
     res.json(updatedTask);
   } catch (err) {
     res.status(400).json({ message: err.message });

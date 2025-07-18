@@ -5,37 +5,109 @@ exports.createTask = async (data) => {
   return await task.save();
 };
 
-exports.getTasks = async (userId) => {
-  return await Task.find({ assignedTo: userId })
-    .populate('assignedTo')
-    .populate('project')
-    .populate('files.uploadedBy', 'name email');
+exports.getTasks = async (queryParams = {}) => {
+  try {
+    console.log('Service received params:', queryParams);
+
+    const {
+      page = 1,
+      limit = 10,
+      status,
+      assignedUser,
+      project,
+      searchQuery,
+      dueDateFrom,
+      dueDateTo,
+      userId
+    } = queryParams;
+
+    // Base query conditions
+    const query = {};
+
+    // Filter logic
+    if (assignedUser) {
+      query.assignedUser = assignedUser;
+    }
+
+    if (status) query.status = status;
+    if (project) query.project = project;
+
+    if (dueDateFrom || dueDateTo) {
+      query.dueDate = {};
+      if (dueDateFrom) query.dueDate.$gte = new Date(dueDateFrom);
+      if (dueDateTo) query.dueDate.$lte = new Date(dueDateTo);
+    }
+
+    if (searchQuery) {
+      query.$or = [
+        { title: { $regex: searchQuery, $options: 'i' } },
+        { description: { $regex: searchQuery, $options: 'i' } }
+      ];
+    }
+
+    console.log('Final MongoDB query:', JSON.stringify(query, null, 2));
+
+    const [tasks, totalCount] = await Promise.all([
+      Task.find(query)
+        .sort({ dueDate: 1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(parseInt(limit))
+        .populate('assignedUser', 'name email avatar')
+        .populate('project', 'title')
+        .populate('files.uploadedBy', 'name email'),
+      Task.countDocuments(query)
+    ]);
+
+    console.log(`Found ${tasks.length} tasks matching query`);
+
+    return {
+      tasks,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+      currentPage: parseInt(page),
+      limit: parseInt(limit)
+    };
+
+  } catch (error) {
+    console.error('Service error:', {
+      message: error.message,
+      stack: error.stack,
+      queryParams
+    });
+    throw error;
+  }
 };
 
-exports.getTaskById = async (taskId, userId) => {
-  const task = await Task.findOne({ _id: taskId, assignedTo: userId })
-    .populate('assignedTo')
+exports.getTaskById = async (taskId) => {
+  const task = await Task.findOne({ _id: taskId })
+    .populate('assignedUser')
     .populate('project')
     .populate('files.uploadedBy', 'name email');
   if (!task) throw new Error('Task not found');
   return task;
 };
 
-exports.updateTask = async (taskId, userId, data) => {
+exports.updateTask = async (taskId, data, userId) => {
   const task = await Task.findOneAndUpdate(
-    { _id: taskId, assignedTo: userId },
+    {
+      _id: taskId,
+      // $or: [
+      //   { assignedUser: userId },  // Either assigned to the user
+      //   { createdBy: userId }    // Or created by the user
+      // ]
+    },
     data,
-    { new: true }
+    { new: true, runValidators: true }
   )
-    .populate('assignedTo')
-    .populate('project')
-    .populate('files.uploadedBy', 'name email');
+    .populate('assignedUser', 'name email avatar')
+    .populate('project', 'title');
+
   if (!task) throw new Error('Task not found or permission denied');
   return task;
 };
 
 exports.deleteTask = async (taskId, userId) => {
-  const task = await Task.findOneAndDelete({ _id: taskId, assignedTo: userId });
+  const task = await Task.findOneAndDelete({ _id: taskId, assignedUser: userId });
   if (!task) throw new Error('Task not found or permission denied');
 };
 
@@ -48,11 +120,11 @@ exports.getTasksByProject = async (projectId) => {
 
 exports.updateTaskStatus = async (taskId, userId, status) => {
   const task = await Task.findOneAndUpdate(
-    { _id: taskId, assignedTo: userId },
+    { _id: taskId, assignedUser: userId },
     { status },
     { new: true }
   )
-    .populate('assignedTo')
+    .populate('assignedUser')
     .populate('project')
     .populate('files.uploadedBy', 'name email');
   if (!task) throw new Error('Task not found or permission denied');
@@ -61,7 +133,7 @@ exports.updateTaskStatus = async (taskId, userId, status) => {
 
 // File Upload Related Services
 exports.addFilesToTask = async (taskId, files, userId) => {
-  const task = await Task.findOne({ _id: taskId, assignedTo: userId });
+  const task = await Task.findOne({ _id: taskId, assignedUser: userId });
   if (!task) throw new Error('Task not found or permission denied');
 
   task.files.push(...files);
@@ -70,7 +142,7 @@ exports.addFilesToTask = async (taskId, files, userId) => {
 };
 
 exports.getTaskFiles = async (taskId, userId) => {
-  const task = await Task.findOne({ _id: taskId, assignedTo: userId })
+  const task = await Task.findOne({ _id: taskId, assignedUser: userId })
     .populate('files.uploadedBy', 'name email');
   if (!task) throw new Error('Task not found or permission denied');
   return task.files;
