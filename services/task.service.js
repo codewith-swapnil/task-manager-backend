@@ -133,7 +133,7 @@ exports.updateTaskStatus = async (taskId, userId, status) => {
 
 // File Upload Related Services
 exports.addFilesToTask = async (taskId, files, userId) => {
-  const task = await Task.findOne({ _id: taskId, assignedUser: userId });
+  const task = await Task.findOne({ _id: taskId });
   if (!task) throw new Error('Task not found or permission denied');
 
   task.files.push(...files);
